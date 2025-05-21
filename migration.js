@@ -15,8 +15,8 @@ async function runMigration(collection,templateFileName, dataFileName, dbName) {
     fs.writeFileSync(MIGRATION_FILE, JSON.stringify(migrationLog, null, 2));
   };
 
-  const templatePath = path.join(config.templateDir, templateFile);
-  const dataPath = path.join(config.dataDir, dataFile);
+  const templatePath = path.join(config.templateDir, `${templateFile}.json`);
+  const dataPath = path.join(config.dataDir, `${dataFile}.json`);
   
   const template = JSON.parse(fs.readFileSync(templatePath));
   const data = JSON.parse(fs.readFileSync(dataPath));
