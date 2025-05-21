@@ -5,22 +5,18 @@ const { connectToDB } = require("./config/db");
 const logger = require("./lib/logger");
 const { applyTemplate, upsertDocument } = require("./lib/migrator");
 
-const collection = process.argv[2];
-if (!collection) {
-  console.error("Usage: node migration.js <collection>");
-  process.exit(1);
-}
+async function runMigration(collection) {
+  if (!collection) throw new Error("Collection name is required");
 
-const TAG = new Date().toISOString().replace(/[:.]/g, "_");
-const MIGRATION_FILE = path.join(config.migrationDir, `migration_${collection}_${TAG}.json`);
-const migrationLog = { tag: TAG, collection, createdAt: new Date().toISOString(), actions: [] };
+  const TAG = new Date().toISOString().replace(/[:.]/g, "_");
+  const MIGRATION_FILE = path.join(config.migrationDir, `migration_${collection}_${TAG}.json`);
+  const migrationLog = { tag: TAG, collection, createdAt: new Date().toISOString(), actions: [] };
 
-async function logAction(entry) {
-  migrationLog.actions.push(entry);
-  fs.writeFileSync(MIGRATION_FILE, JSON.stringify(migrationLog, null, 2));
-}
+  const logAction = (entry) => {
+    migrationLog.actions.push(entry);
+    fs.writeFileSync(MIGRATION_FILE, JSON.stringify(migrationLog, null, 2));
+  };
 
-async function runMigration() {
   const templatePath = path.join(config.templateDir, `${collection}.json`);
   const dataPath = path.join(config.dataDir, `${collection}.json`);
 
@@ -42,9 +38,4 @@ async function runMigration() {
   logger.info("Migration complete.");
 }
 
-if (require.main === module) {
-  runMigration().catch(err => {
-    logger.error("Migration failed: " + err);
-    process.exit(1);
-  });
-}
+module.exports = { runMigration };
