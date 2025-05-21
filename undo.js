@@ -5,7 +5,7 @@ const config = require("./config/config");
 const { connectToDB } = require("./config/db");
 const logger = require("./lib/logger");
 
-async function runUndo(tag, collection, filterId = null) {
+async function runUndo(tag, collection, dbName, filterId = null) {
   if (!tag || !collection) {
     throw new Error("Both tag and collection are required.");
   }
@@ -18,7 +18,7 @@ async function runUndo(tag, collection, filterId = null) {
   const { actions } = JSON.parse(fs.readFileSync(file));
   const filtered = filterId ? actions.filter(a => String(a._id) === filterId) : actions;
 
-  const { client, db } = await connectToDB();
+  const { client, db } = await connectToDB(dbName);
 
   for (const action of filtered) {
     try {
