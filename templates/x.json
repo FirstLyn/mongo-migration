@@ -1,8 +1,10 @@
 {
   "_meta": {
-    "matchFields": ["name"]
+    "matchFields": ["email"]
   },
+  "email": "{{email}}",
   "name": "{{name}}",
+  "role": "{{role}}",
   "createdAt": "{{createdAt}}",
   "tag": "{{tag}}"
 }
