@@ -5,9 +5,7 @@ const { connectToDB } = require("./config/db");
 const logger = require("./lib/logger");
 const { applyTemplate, upsertDocument } = require("./lib/migrator");
 
-async function runMigration(collection, dbName) {
-  if (!collection) throw new Error("Collection name is required");
-
+async function runMigration(collection,templateFileName, dataFileName, dbName) {
   const TAG = new Date().toISOString().replace(/[:.]/g, "_");
   const MIGRATION_FILE = path.join(config.migrationDir, `migration_${collection}_${TAG}.json`);
   const migrationLog = { tag: TAG, collection, createdAt: new Date().toISOString(), actions: [] };
@@ -17,9 +15,9 @@ async function runMigration(collection, dbName) {
     fs.writeFileSync(MIGRATION_FILE, JSON.stringify(migrationLog, null, 2));
   };
 
-  const templatePath = path.join(config.templateDir, `${collection}.json`);
-  const dataPath = path.join(config.dataDir, `${collection}.json`);
-
+  const templatePath = path.join(config.templateDir, templateFile);
+  const dataPath = path.join(config.dataDir, dataFile);
+  
   const template = JSON.parse(fs.readFileSync(templatePath));
   const data = JSON.parse(fs.readFileSync(dataPath));
   const matchFields = template._meta.matchFields;
@@ -37,5 +35,3 @@ async function runMigration(collection, dbName) {
   await client.close();
   logger.info("Migration complete.");
 }
-
-module.exports = { runMigration };
