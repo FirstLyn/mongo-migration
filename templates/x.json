@@ -1,17 +1,10 @@
-[
-  {
-    "email": "alice@example.com",
-    "name": "Alice",
-    "role": "admin"
+{
+  "_meta": {
+    "matchFields": ["email"]
   },
-  {
-    "email": "bob@example.com",
-    "name": "Bob",
-    "role": "editor"
-  },
-  {
-    "email": "charlie@example.com",
-    "name": "Charlie",
-    "role": "viewer"
-  }
-]
+  "email": "{{email}}",
+  "name": "{{name}}",
+  "role": "{{role}}",
+  "createdAt": "{{createdAt}}",
+  "tag": "{{tag}}"
+}
