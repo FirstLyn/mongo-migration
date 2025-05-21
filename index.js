@@ -11,15 +11,16 @@ async function main() {
   }
 
   if (command === "migration") {
-    const collection = process.argv[3];
-    const dbName = process.argv[4];
+    const templateFile = process.argv[3];
+    const dataFile = process.argv[4];
+    const dbName = process.argv[5];
 
-    if (!collection || !dbName) {
-      console.error("❌ Usage: node index.js migration <collection> <dbName>");
+    if (!templateFile || !dataFile || !dbName) {
+      console.error("❌ Usage: node index.js migration <templateFile> <dataFile> <dbName>");
       process.exit(1);
     }
 
-    await runMigration(collection, dbName);
+    await runMigration(templateFile, dataFile, dbName);
 
   } else if (command === "undo") {
     const tag = process.argv[3];
