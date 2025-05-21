@@ -9,15 +9,15 @@ Designed for clarity, automation, and reversibility.
 
 ```
 mongo-migration/
-├── data/            # Input data per collection (e.g., x.json)
-├── templates/       # Templates with placeholders and match logic (e.g., x.json)
+├── data/            # Input data files (e.g., internal_users.json)
+├── templates/       # Template files with placeholders and match logic
 ├── migrations/      # Auto-generated logs for each migration
 ├── settings/        # Configuration and DB connection
 ├── lib/             # Migration logic and utilities
 ├── index.js         # Main entry point (CLI & code-based usage)
 ├── migration.js     # Migration logic (called by index.js)
 ├── undo.js          # Undo logic (called by index.js)
-├── .env             # Mongo URI only (dbName is CLI param)
+├── .env             # Contains only MONGO_URI
 └── README.md
 ```
 
@@ -25,42 +25,47 @@ mongo-migration/
 
 ## 🚀 How to Run a Migration
 
-### 1. Create Your Template and Data Files
+### 1. Prepare Template and Data Files
 
-#### Example: `templates/products.json`
+#### Example: `templates/users.json`
 ```json
 {
   "_meta": {
-    "matchFields": ["sku"]
+    "matchFields": ["email"]
   },
-  "sku": "{{sku}}",
+  "email": "{{email}}",
   "name": "{{name}}",
-  "category": "{{category}}",
+  "role": "{{role}}",
   "createdAt": "{{createdAt}}",
   "tag": "{{tag}}"
 }
 ```
 
-#### Example: `data/products.json`
+#### Example: `data/internal_users.json`
 ```json
 [
-  { "sku": "123", "name": "Item 1", "category": "books" },
-  { "sku": "124", "name": "Item 2", "category": "games" }
+  { "email": "a@x.com", "name": "Alice", "role": "admin" },
+  { "email": "b@x.com", "name": "Bob", "role": "user" }
 ]
 ```
 
 ### 2. Run the Migration
 ```bash
-node index.js migration products my_database_name
+node index.js migration <collection> <templateFile> <dataFile> <dbName>
+```
+
+#### Example:
+```bash
+node index.js migration users users internal_users my_database
 ```
 
 This will:
-- Load the template and data for collection `products`
-- Fill placeholders (e.g., `{{sku}}`, `{{createdAt}}`, `{{tag}}`)
-- Use `matchFields` from `_meta` to decide insert vs update
-- Save a log to `migrations/migration_products_<timestamp>.json`
+- Load template from `templates/users.json`
+- Load data from `data/internal_users.json`
+- Use `matchFields` to decide insert vs update
+- Write log file to `migrations/migration_users_<timestamp>.json`
 
-> 💡 `dbName` must be passed explicitly as the last argument.
+> 💡 You **do not** need to include `.json` in the file names.
 
 ---
 
@@ -70,16 +75,16 @@ This will:
 node index.js undo <tag> <collection> [optional _id] <dbName>
 ```
 
-Examples:
+#### Examples:
 ```bash
-node index.js undo 2024_05_22T14_00_00Z products my_database_name
-node index.js undo 2024_05_22T14_00_00Z products 665abc... my_database_name
+node index.js undo 2024_05_22T14_00_00Z users my_database
+node index.js undo 2024_05_22T14_00_00Z users 665abc... my_database
 ```
 
 This will:
-- Read the relevant `migration_<collection>_<tag>.json` file
-- Revert `insert` actions by deleting the document
-- Revert `update` actions by restoring the `previous` version
+- Read the log file `migration_<collection>_<tag>.json`
+- Delete inserted docs
+- Restore updated docs to their previous state
 
 ---
 
@@ -87,7 +92,7 @@ This will:
 
 | Placeholder       | Description                          |
 |------------------|--------------------------------------|
-| `{{sku}}`, `{{name}}` | Comes from each entry in data file |
+| `{{email}}`, `{{name}}` | Comes from each entry in data file |
 | `{{createdAt}}`   | Automatically filled with timestamp  |
 | `{{tag}}`         | Unique migration tag ID              |
 
@@ -95,32 +100,24 @@ This will:
 
 ## 🧪 Programmatic Usage
 
-You can also run everything from code:
+You can also run migrations and undos from your code:
 
 ```js
 const { runMigration, runUndo } = require("./index");
 
-await runMigration("products", "my_database_name");
-await runUndo("2024_05_22T14_00_00Z", "products", null, "my_database_name");
+await runMigration("users", "users", "internal_users", "my_database");
+await runUndo("2024_05_22T14_00_00Z", "users", null, "my_database");
 ```
 
 ---
 
-## 🛠 Tips & Extensibility
+## 🛠 Tips
 
-- Add more collections by creating:
-  - `templates/<collection>.json`
-  - `data/<collection>.json`
-
-- Customize `matchFields` in each template's `_meta` section
-
-- All logs are saved in JSON format and include:
-  - success/failure
-  - insert/update type
-  - document before/after (for update)
-
-- Extend `applyTemplate()` in `lib/migrator.js` to add more placeholder logic
+- You can use any logical names for files as long as the `.json` files exist under `templates/` and `data/`
+- You control the match logic via `_meta.matchFields`
+- Migration logs are saved per collection + tag for easy traceability
+- Extend `applyTemplate()` if you want advanced placeholder support (e.g., defaults, conditions)
 
 ---
 
-Happy Migrating! 🚀
+Happy Migrating 🚀
