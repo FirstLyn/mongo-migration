@@ -5,7 +5,7 @@ const { connectToDB } = require("./config/db");
 const logger = require("./lib/logger");
 const { applyTemplate, upsertDocument } = require("./lib/migrator");
 
-async function runMigration(collection) {
+async function runMigration(collection, dbName) {
   if (!collection) throw new Error("Collection name is required");
 
   const TAG = new Date().toISOString().replace(/[:.]/g, "_");
@@ -27,7 +27,7 @@ async function runMigration(collection) {
 
   fs.mkdirSync(config.migrationDir, { recursive: true });
 
-  const { client, db } = await connectToDB();
+  const { client, db } = await connectToDB(dbName);
 
   for (const item of data) {
     const doc = applyTemplate(template, item, TAG);
