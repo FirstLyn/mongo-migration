@@ -1,1 +1,10 @@
-[{"name": "Item 1"}, {"name": "Item 2"}]
+{
+  "_meta": {
+    "matchFields": ["email"]
+  },
+  "email": "{{email}}",
+  "name": "{{name}}",
+  "role": "{{role}}",
+  "createdAt": "{{createdAt}}",
+  "tag": "{{tag}}"
+}
