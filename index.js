@@ -6,35 +6,43 @@ async function main() {
   const command = process.argv[2];
 
   if (!command) {
-    console.error("Please provide a command: migration or undo");
+    console.error("❌ Please provide a command: migration or undo");
     process.exit(1);
   }
 
   if (command === "migration") {
     const collection = process.argv[3];
-    if (!collection) {
-      console.error("Please provide a collection name: node index.js migration <collection>");
+    const dbName = process.argv[4];
+
+    if (!collection || !dbName) {
+      console.error("❌ Usage: node index.js migration <collection> <dbName>");
       process.exit(1);
     }
-    await runMigration(collection);
+
+    await runMigration(collection, dbName);
+
   } else if (command === "undo") {
     const tag = process.argv[3];
     const collection = process.argv[4];
-    const id = process.argv[5];
-    if (!tag || !collection) {
-      console.error("Usage: node index.js undo <tag> <collection> [optional _id]");
+    const filterId = process.argv[5];
+    const dbName = process.argv[6];
+
+    if (!tag || !collection || !dbName) {
+      console.error("❌ Usage: node index.js undo <tag> <collection> [optional _id] <dbName>");
       process.exit(1);
     }
-    await runUndo(tag, collection, id);
+
+    await runUndo(tag, collection, filterId, dbName);
+
   } else {
-    console.error("Unknown command: use 'migration' or 'undo'");
+    console.error("❌ Unknown command: use 'migration' or 'undo'");
     process.exit(1);
   }
 }
 
 if (require.main === module) {
   main().catch(err => {
-    console.error("Execution failed:", err);
+    console.error("❌ Execution failed:", err);
     process.exit(1);
   });
 }
