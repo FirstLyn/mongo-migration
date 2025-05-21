@@ -14,9 +14,10 @@ mongo-migration/
 ├── migrations/      # Auto-generated logs for each migration
 ├── settings/        # Configuration and DB connection
 ├── lib/             # Migration logic and utilities
-├── migration.js     # Entry point for running a migration
-├── undo.js          # Script to revert a migration by tag
-├── .env             # Environment variables
+├── index.js         # Main entry point (CLI & code-based usage)
+├── migration.js     # Migration logic (called by index.js)
+├── undo.js          # Undo logic (called by index.js)
+├── .env             # Mongo URI only (dbName is CLI param)
 └── README.md
 ```
 
@@ -26,109 +27,100 @@ mongo-migration/
 
 ### 1. Create Your Template and Data Files
 
-#### Example: `templates/x.json`
+#### Example: `templates/products.json`
 ```json
 {
   "_meta": {
-    "matchFields": ["name"]
+    "matchFields": ["sku"]
   },
+  "sku": "{{sku}}",
   "name": "{{name}}",
-  "type": "{{type}}",
+  "category": "{{category}}",
   "createdAt": "{{createdAt}}",
   "tag": "{{tag}}"
 }
 ```
 
-#### Example: `data/x.json`
+#### Example: `data/products.json`
 ```json
 [
-  { "name": "Item 1", "type": "A" },
-  { "name": "Item 2", "type": "B" }
+  { "sku": "123", "name": "Item 1", "category": "books" },
+  { "sku": "124", "name": "Item 2", "category": "games" }
 ]
 ```
 
 ### 2. Run the Migration
 ```bash
-node migration.js x
+node index.js migration products my_database_name
 ```
 
 This will:
-- Load the template and data for collection `x`
-- Fill placeholders (`{{name}}`, `{{createdAt}}`, `{{tag}}`...)
-- Use `matchFields` from `_meta` to determine if to insert or update
-- Write a detailed migration log to `migrations/migration_x_<timestamp>.json`
+- Load the template and data for collection `products`
+- Fill placeholders (e.g., `{{sku}}`, `{{createdAt}}`, `{{tag}}`)
+- Use `matchFields` from `_meta` to decide insert vs update
+- Save a log to `migrations/migration_products_<timestamp>.json`
 
-### 3. Set Environment Settings
-Create a `.env` file:
-```
-MONGO_URI=mongodb://localhost:27017
-DRY_RUN=true
-```
-Set `DRY_RUN=false` to apply changes for real.
+> 💡 `dbName` must be passed explicitly as the last argument.
 
 ---
 
-## 🔁 How to Undo a Migration
+## 🔁 Undo a Migration
 
 ```bash
-node undo.js <tag> <collection> [optional _id]
+node index.js undo <tag> <collection> [optional _id] <dbName>
 ```
 
-Example:
+Examples:
 ```bash
-node undo.js 2024_05_21T12_00_00_000Z x
-node undo.js 2024_05_21T12_00_00_000Z x 6651c...
+node index.js undo 2024_05_22T14_00_00Z products my_database_name
+node index.js undo 2024_05_22T14_00_00Z products 665abc... my_database_name
 ```
 
 This will:
-- Read the matching `migration_<collection>_<tag>.json` log file
-- Revert each `insert` by deleting the document
-- Revert each `update` by restoring the original (`previous`) document
+- Read the relevant `migration_<collection>_<tag>.json` file
+- Revert `insert` actions by deleting the document
+- Revert `update` actions by restoring the `previous` version
 
 ---
 
-## 🧠 Supported Placeholders
-| Placeholder   | Description                      |
-|--------------|----------------------------------|
-| `{{name}}`   | From data file                   |
-| `{{type}}`   | From data file                   |
-| `{{createdAt}}` | Filled with ISO timestamp      |
-| `{{tag}}`    | Auto-filled with current tag     |
+## 🔁 Placeholder Variables
+
+| Placeholder       | Description                          |
+|------------------|--------------------------------------|
+| `{{sku}}`, `{{name}}` | Comes from each entry in data file |
+| `{{createdAt}}`   | Automatically filled with timestamp  |
+| `{{tag}}`         | Unique migration tag ID              |
 
 ---
 
-## 🛠 Tips
+## 🧪 Programmatic Usage
 
-- You can add more collections by simply creating:
+You can also run everything from code:
+
+```js
+const { runMigration, runUndo } = require("./index");
+
+await runMigration("products", "my_database_name");
+await runUndo("2024_05_22T14_00_00Z", "products", null, "my_database_name");
+```
+
+---
+
+## 🛠 Tips & Extensibility
+
+- Add more collections by creating:
   - `templates/<collection>.json`
   - `data/<collection>.json`
 
-- You can define any match logic by modifying `_meta.matchFields`
+- Customize `matchFields` in each template's `_meta` section
 
-- Migration logs include:
-  - success/failure status
-  - full before/after content
+- All logs are saved in JSON format and include:
+  - success/failure
+  - insert/update type
+  - document before/after (for update)
 
-- To support custom placeholder defaults or functions, extend `applyTemplate()` in `lib/migrator.js`
-
----
-
-## 🧪 Example Use Case
-You want to sync product items to your MongoDB. You create:
-- `templates/products.json` — defines the shape of the document and what counts as duplicate (e.g. `sku`)
-- `data/products.json` — contains partial raw data (e.g. only `sku`, `name`, `category`)
-
-You run:
-```bash
-node migration.js products
-```
-And when needed:
-```bash
-node undo.js 2024_05_21T13_05_00_000Z products
-```
-
-And you’re safe ✅
+- Extend `applyTemplate()` in `lib/migrator.js` to add more placeholder logic
 
 ---
 
-Happy Migrating!
+Happy Migrating! 🚀
