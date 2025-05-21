@@ -19,7 +19,18 @@ async function runMigration(collection,templateFileName, dataFileName, dbName) {
   const dataPath = path.join(config.dataDir, `${dataFile}.json`);
   
   const template = JSON.parse(fs.readFileSync(templatePath));
-  const data = JSON.parse(fs.readFileSync(dataPath));
+  let data;
+  const jsonPath = path.join(config.dataDir, `${dataFile}.json`);
+  const jsPath = path.join(config.dataDir, `${dataFile}.js`);
+
+  if (fs.existsSync(jsonPath)) {
+    data = JSON.parse(fs.readFileSync(jsonPath));
+  } else if (fs.existsSync(jsPath)) {
+    const dynamicDataFn = require(jsPath);
+   data = await dynamicDataFn(db); // call with db instance
+  } else {
+    throw new Error(`Data source "${dataFile}" not found as .json or .js`);
+  }
   const matchFields = template._meta.matchFields;
   delete template._meta;
 
