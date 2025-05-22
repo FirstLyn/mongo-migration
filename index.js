@@ -24,18 +24,17 @@ async function main() {
     await runMigration(collection, templateFile, dataFile, dbName);
 
   } else if (command === "undo") {
-    const tag = process.argv[3];
-    const collection = process.argv[4];
-    const filterId = process.argv[5];
-    const dbName = process.argv[6] || filterId; // fallback if filterId is omitted
+   const tag = process.argv[3];
+   const collection = process.argv[4];
+  const dbName = process.argv[5];
+   const filterId = process.argv[6]; // optional
 
-    if (!tag || !collection || !dbName) {
-      console.error("❌ Usage: node index.js undo <tag> <collection> [optional _id] <dbName>");
-      process.exit(1);
-    }
+  if (!tag || !collection || !dbName) {
+    console.error("❌ Usage: node index.js undo <tag> <collection> <dbName> [optional _id]");
+    process.exit(1);
+  }
 
-    const isIdGiven = dbName !== filterId;
-    await runUndo(tag, collection, isIdGiven ? filterId : null, dbName);
+  await runUndo(tag, collection, dbName, filterId);
 
   } else {
     console.error("❌ Unknown command: use 'migration' or 'undo'");
