@@ -22,6 +22,11 @@ async function runUndo(tag, collection, dbName, filterId = null) {
 
   for (const action of filtered) {
     try {
+      if (action.status === "dryRun") {
+        logger.info(`Skipping dryRun action _id=${action._id ?? "(no _id)"}`);
+        continue;
+      }
+
       if (action.action === "insert") {
         await db.collection(action.collection).deleteOne({ _id: new ObjectId(action._id) });
         logger.info(`Deleted inserted doc _id=${action._id}`);
