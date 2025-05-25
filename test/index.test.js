@@ -32,6 +32,6 @@ describe('CLI Commands', () => {
       '--db',
       'testdb'
     ]);
-    expect(stdout).toBeDefined(); // You can refine this based on your output
+    expect(stdout).toBeDefined(); // Adjust according to your output
   });
 });
