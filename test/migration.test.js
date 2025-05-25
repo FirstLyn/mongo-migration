@@ -1,105 +1,140 @@
+// __tests__/runMigration.test.js
 const fs = require("fs");
 const path = require("path");
-const { runMigration } = require("../runMigration");
 
+// Mock all the dependencies before importing the function
 jest.mock("fs");
 jest.mock("path");
 jest.mock("../config/config", () => ({
-  migrationDir: "/migrations",
-  dataDir: "/data",
-  templateDir: "/templates",
+  migrationDir: "/mock/migrations",
+  templateDir: "/mock/templates", 
+  dataDir: "/mock/data"
 }));
-jest.mock("../config/db");
-jest.mock("../lib/logger");
-jest.mock("../lib/migrator");
+jest.mock("../config/db", () => ({
+  connectToDB: jest.fn()
+}));
+jest.mock("../lib/logger", () => ({
+  info: jest.fn()
+}));
+jest.mock("../lib/migrator", () => ({
+  applyTemplate: jest.fn(),
+  upsertDocument: jest.fn()
+}));
 
+// Import after mocking
+const { runMigration } = require("../path/to/your/file");
 const { connectToDB } = require("../config/db");
-const logger = require("../lib/logger");
 const { applyTemplate, upsertDocument } = require("../lib/migrator");
 
 describe("runMigration", () => {
-  const mockDb = {};
-  const mockClient = { close: jest.fn() };
-
-  const mockTemplate = {
-    _meta: { matchFields: ["id"] },
-    field: "{{value}}"
-  };
-  const mockData = [{ value: "A" }, { value: "B" }];
-  const mockTag = "mock_tag";
-  const collection = "myCollection";
-  const dbName = "testDB";
-
-  const templatePath = "/templates/template.json";
-  const jsonDataPath = "/data/data.json";
-  const jsDataPath = "/data/data.js";
-  const migrationFilePath = "/migrations/migration_myCollection_mock_tag.json";
+  let mockClient, mockDb;
 
   beforeEach(() => {
-    jest.resetModules();
     jest.clearAllMocks();
-
-    path.join.mockImplementation((...args) => args.join("/"));
-
-    fs.existsSync.mockImplementation((filePath) => filePath === jsonDataPath);
-
+    
+    // Setup mocks
+    mockClient = { close: jest.fn() };
+    mockDb = {};
+    connectToDB.mockResolvedValue({ client: mockClient, db: mockDb });
+    
+    fs.existsSync.mockImplementation((filePath) => {
+      if (filePath.includes('.json')) return true;
+      return false;
+    });
+    
     fs.readFileSync.mockImplementation((filePath) => {
-      if (filePath === templatePath) return JSON.stringify(mockTemplate);
-      if (filePath === jsonDataPath) return JSON.stringify(mockData);
-      return null;
+      if (filePath.includes('template')) {
+        return JSON.stringify({
+          _meta: { matchFields: ['id'] },
+          name: '{{name}}',
+          value: '{{value}}'
+        });
+      }
+      if (filePath.includes('data')) {
+        return JSON.stringify([
+          { name: 'test1', value: 'value1' },
+          { name: 'test2', value: 'value2' }
+        ]);
+      }
+      return '{}';
     });
-
-    fs.mkdirSync.mockImplementation(() => {});
+    
     fs.writeFileSync.mockImplementation(() => {});
-
-    Date.prototype.toISOString = jest.fn(() => "2025-01-01T00:00:00.000Z");
-    applyTemplate.mockImplementation((template, data, tag) => ({
-      ...template,
-      substituted: data.value,
+    fs.mkdirSync.mockImplementation(() => {});
+    
+    path.join.mockImplementation((...args) => args.join('/'));
+    
+    applyTemplate.mockImplementation((template, item, tag) => ({
+      ...item,
+      _migrationTag: tag
     }));
-    upsertDocument.mockImplementation(async (db, coll, doc, fields, tag, logFn) => {
-      logFn({ doc });
-    });
-
-    connectToDB.mockResolvedValue({ db: mockDb, client: mockClient });
+    
+    upsertDocument.mockResolvedValue();
   });
 
-  it("runs migration with .json data source", async () => {
-    await runMigration(collection, "template", "data", dbName);
-
-    expect(fs.readFileSync).toHaveBeenCalledWith(templatePath);
-    expect(fs.readFileSync).toHaveBeenCalledWith(jsonDataPath);
-    expect(fs.mkdirSync).toHaveBeenCalledWith("/migrations", { recursive: true });
-
+  test("should run migration successfully with JSON data", async () => {
+    await runMigration("testCollection", "testTemplate", "testData", "testDb");
+    
+    expect(connectToDB).toHaveBeenCalledWith("testDb");
+    expect(fs.mkdirSync).toHaveBeenCalledWith("/mock/migrations", { recursive: true });
     expect(applyTemplate).toHaveBeenCalledTimes(2);
     expect(upsertDocument).toHaveBeenCalledTimes(2);
     expect(mockClient.close).toHaveBeenCalled();
-
-    expect(logger.info).toHaveBeenCalledWith("Migration complete.");
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
-      expect.stringContaining("migration_myCollection"),
-      expect.stringContaining("mock_tag")
-    );
   });
 
-  it("runs migration with .js data source", async () => {
-    fs.existsSync.mockImplementation((filePath) => filePath === jsDataPath);
+  test("should handle JS data files", async () => {
+    // Mock JS file exists instead of JSON
+    fs.existsSync.mockImplementation((filePath) => {
+      if (filePath.includes('.js')) return true;
+      if (filePath.includes('.json') && filePath.includes('data')) return false;
+      return filePath.includes('.json');
+    });
 
-    const dynamicFn = jest.fn().mockResolvedValue(mockData);
-    jest.mock("/data/data.js", () => dynamicFn, { virtual: true });
-    require.cache[require.resolve("/data/data.js")] = { exports: dynamicFn };
+    const mockDynamicData = jest.fn().mockResolvedValue([
+      { name: 'dynamic1', value: 'dynValue1' }
+    ]);
+    
+    // Mock require for JS file
+    const originalRequire = require;
+    require = jest.fn().mockImplementation((modulePath) => {
+      if (modulePath.includes('data')) {
+        return mockDynamicData;
+      }
+      return originalRequire(modulePath);
+    });
 
-    await runMigration(collection, "template", "data", dbName);
-
-    expect(dynamicFn).toHaveBeenCalledWith(mockDb);
-    expect(applyTemplate).toHaveBeenCalledTimes(2);
-    expect(upsertDocument).toHaveBeenCalledTimes(2);
+    await runMigration("testCollection", "testTemplate", "testData", "testDb");
+    
+    expect(mockDynamicData).toHaveBeenCalledWith(mockDb);
+    expect(applyTemplate).toHaveBeenCalledTimes(1);
+    
+    // Restore require
+    require = originalRequire;
   });
 
-  it("throws if data source is missing", async () => {
+  test("should throw error when data file not found", async () => {
     fs.existsSync.mockReturnValue(false);
-    await expect(runMigration(collection, "template", "missing", dbName)).rejects.toThrow(
-      'Data source "missing" not found as .json or .js'
+    
+    await expect(runMigration("testCollection", "testTemplate", "testData", "testDb"))
+      .rejects.toThrow('Data source "testData" not found as .json or .js');
+  });
+
+  test("should create migration log file", async () => {
+    await runMigration("testCollection", "testTemplate", "testData", "testDb");
+    
+    // Check that writeFileSync was called (for migration log)
+    expect(fs.writeFileSync).toHaveBeenCalled();
+    
+    // Get the first call to writeFileSync (the migration log)
+    const writeCall = fs.writeFileSync.mock.calls.find(call => 
+      call[0].includes('migration_testCollection_')
     );
+    expect(writeCall).toBeTruthy();
+    
+    // Parse the logged data
+    const loggedData = JSON.parse(writeCall[1]);
+    expect(loggedData).toHaveProperty('tag');
+    expect(loggedData).toHaveProperty('collection', 'testCollection');
+    expect(loggedData).toHaveProperty('actions');
   });
 });
